@@ -1,33 +1,30 @@
 from rest_framework import serializers
 
-from reviews.models import Category, Genre, Title
+from reviews.models import Category, Genre, Title, User
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        exclude = ['id']
+        exclude = ["id"]
 
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
-        exclude = ['id']
+        exclude = ["id"]
 
 
 class TitlePostSerializer(serializers.ModelSerializer):
     category = serializers.SlugRelatedField(
-        slug_field='slug',
-        queryset=Category.objects.all()
+        slug_field="slug", queryset=Category.objects.all()
     )
     genre = serializers.SlugRelatedField(
-        slug_field='slug',
-        queryset=Genre.objects.all(),
-        many=True
+        slug_field="slug", queryset=Genre.objects.all(), many=True
     )
 
     class Meta:
-        fields = '__all__'
+        fields = "__all__"
         model = Title
 
 
@@ -37,5 +34,34 @@ class TitleGetSerializer(serializers.ModelSerializer):
     rating = serializers.IntegerField(read_only=True)
 
     class Meta:
-        fields = '__all__'
+        fields = "__all__"
         model = Title
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "role",
+            "bio",
+        )
+        model = User
+
+
+class SignUpSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("email",)
+
+
+class TokenSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        required=True,
+    )
+    confirmation_code = serializers.CharField(
+        required=True,
+    )
