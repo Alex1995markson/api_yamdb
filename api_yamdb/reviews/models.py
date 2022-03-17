@@ -6,11 +6,11 @@ from .validators import validation_of_the_year
 class Category(models.Model):
     name = models.CharField(
         verbose_name='Категория',
-        max_length=64
+        max_length=64,
     )
     slug = models.SlugField(
         verbose_name='Адрес категории',
-        unique=True
+        unique=True,
     )
 
     class Meta:
@@ -64,7 +64,6 @@ class Title(models.Model):
         Category,
         verbose_name='Категория',
         related_name='titles',
-        on_delete=models.SET_NULL,
         blank=True,
         null=True,
         on_delete=models.SET_NULL
