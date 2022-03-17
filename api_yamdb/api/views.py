@@ -1,15 +1,17 @@
 from django.db.models import Avg
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework import filters
 from rest_framework.viewsets import ModelViewSet
 
-from reviews.models import Category, Genre, Title
+from reviews.models import Category, Genre, Title, Review
 from .mixins import CreateListViewSet
-from .permissions import IsAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, IsAdminOrAuthorOrReadOnly
 from .filters import TitlesFilter
 from .serializers import (CategorySerializer, GenreSerializer,
-                          TitlePostSerializer, TitleGetSerializer)
+                          TitlePostSerializer, TitleGetSerializer, CommentSerializer, ReviewSerializer)
 
 
 class CategoryViewSet(CreateListViewSet):
@@ -43,3 +45,32 @@ class TitleViewSet(ModelViewSet):
         if self.action in ('create', 'partial_update'):
             return TitlePostSerializer
         return TitleGetSerializer
+
+
+class ReviewViewSet(ModelViewSet):
+    serializer_class = ReviewSerializer
+    permission_classes = (IsAdminOrAuthorOrReadOnly,)
+
+
+    def perform_create(self, serializer):
+        title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
+        if Review.objects.filter(
+                title=title, author=self.request.user
+        ).exists():
+            raise ValidationError('Можно оставить только один отзыв')
+        serializer.save(author=self.request.user, title=title)
+
+
+class CommentViewSet(ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = (IsAdminOrAuthorOrReadOnly,)
+
+    def get_queryset(self):
+        review = get_object_or_404(Review, id=self.kwargs.get('review_id'))
+        return review.comments.all()
+
+    def perform_create(self, serializer):
+        review_id = self.kwargs.get('review_id')
+        review = get_object_or_404(Review, pk=review_id)
+        serializer.save(author=self.request.user, review=review)
+

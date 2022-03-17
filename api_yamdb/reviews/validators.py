@@ -7,3 +7,10 @@ def validation_of_the_year(year):
     if year > current_year:
         raise ValidationError(
             'Указанный год не может быть больше текущего')
+
+
+def validate_score(value):
+    if value > 10 or value < 1:
+        raise ValidationError(
+            ('Рейтинг %(value)s не коректный!'),
+        )
