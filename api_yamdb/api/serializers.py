@@ -1,6 +1,8 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
-from reviews.models import Category, Genre, Title
+from reviews.models import Category, Genre, Title, Comment, Review
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -39,3 +41,54 @@ class TitleGetSerializer(serializers.ModelSerializer):
     class Meta:
         fields = '__all__'
         model = Title
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(
+        read_only=True,
+        slug_field='username',
+        default=serializers.CurrentUserDefault()
+    )
+    title = serializers.SlugRelatedField(
+        slug_field='id',
+        many=False,
+        read_only=True
+    )
+
+    def validate(self, data):
+        request = self.context['request']
+        title_id = self.context.get('view').kwargs.get('title_id')
+        title = get_object_or_404(Title, pk=title_id)
+        if (
+                request.method == 'POST'
+                and Review.objects.filter(
+            title=title,
+            author=request.user).exists()
+        ):
+            raise ValidationError('Можно оставить только один отзыв')
+        return data
+
+    class Meta:
+        fields = '__all__'
+        model = Review
+
+    def validate_score(self, value):
+        if value > 10 or value < 1:
+            raise serializers.ValidationError('Не коректно указанный рейтинг!')
+        return value
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    review = serializers.SlugRelatedField(
+        slug_field='text',
+        read_only=True
+    )
+    author = serializers.SlugRelatedField(
+        read_only=True,
+        slug_field='username',
+        default=serializers.CurrentUserDefault()
+    )
+
+    class Meta:
+        model = Comment
+        fields = ('id', 'text', 'author', 'pub_date', 'review')
