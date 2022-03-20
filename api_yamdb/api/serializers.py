@@ -2,44 +2,41 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from reviews.models import Category, Genre, Title, Comment, Review
+from reviews.models import Category, Genre, Title, User, Comment, Review
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        exclude = ['id']
+        exclude = ["id"]
 
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
-        exclude = ['id']
+        exclude = ["id"]
 
 
 class TitlePostSerializer(serializers.ModelSerializer):
     category = serializers.SlugRelatedField(
-        slug_field='slug',
-        queryset=Category.objects.all()
+        slug_field="slug", queryset=Category.objects.all()
     )
     genre = serializers.SlugRelatedField(
-        slug_field='slug',
-        queryset=Genre.objects.all(),
-        many=True
+        slug_field="slug", queryset=Genre.objects.all(), many=True
     )
 
     class Meta:
-        fields = '__all__'
+        fields = "__all__"
         model = Title
 
 
 class TitleGetSerializer(serializers.ModelSerializer):
     category = CategorySerializer()
     genre = GenreSerializer(many=True)
-    rating = serializers.IntegerField(read_only=True)
+    # rating = serializers.IntegerField(read_only=True)
 
     class Meta:
-        fields = '__all__'
+        fields = "__all__"
         model = Title
 
 
@@ -62,8 +59,8 @@ class ReviewSerializer(serializers.ModelSerializer):
         if (
                 request.method == 'POST'
                 and Review.objects.filter(
-            title=title,
-            author=request.user).exists()
+                    title=title,
+                    author=request.user).exists()
         ):
             raise ValidationError('Можно оставить только один отзыв')
         return data
@@ -92,3 +89,32 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = ('id', 'text', 'author', 'pub_date', 'review')
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "role",
+            "bio",
+        )
+        model = User
+
+
+class SignUpSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("email",)
+
+
+class TokenSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        required=True,
+    )
+    confirmation_code = serializers.CharField(
+        required=True,
+    )
