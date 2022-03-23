@@ -10,7 +10,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework import filters, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -19,7 +19,11 @@ from reviews.models import Category, Genre, Title, Review, User
 from api_yamdb.settings import DEFAULT_FROM_EMAIL
 
 from .mixins import CreateListViewSet
-from .permissions import IsAdminOrReadOnly, IsAdminOrAuthorOrReadOnly
+from .permissions import (IsAdminOrReadOnly,
+                          IsAdminOrAuthorOrReadOnly,
+                          IsAdmin
+                          )
+
 from .filters import TitlesFilter
 from .serializers import (CategorySerializer,
                           GenreSerializer,
@@ -165,7 +169,7 @@ class APISignup(APIView):
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAdminUser | IsAdmin]
     serializer_class = UserSerializer
     lookup_field = "username"
     filter_backends = [filters.SearchFilter]
@@ -266,5 +270,3 @@ class CreateToken(APIView):
             "Confirm code invalid",
             status=status.HTTP_400_BAD_REQUEST
         )
-        
-        

@@ -10,12 +10,16 @@ from api.views import (
     UserViewSet,
     GenreViewSet,
     TitleViewSet,
+    CodeConfirmView,
+    EmailSignUpView
 )
+
 
 app_name = 'api'
 
 
 v1_router = DefaultRouter()
+
 v1_router.register(
     prefix=r'categories',
     viewset=CategoryViewSet,
@@ -41,28 +45,51 @@ v1_router.register(
     CommentViewSet,
     basename='comments'
 )
-v1_router.register(
-    prefix=r'users',
-    viewset=UserViewSet,
-    basename='users',
-)
 
-token_auth_urls = [
+v1_router.register(r'users', UserViewSet)
+
+auth_patterns = [
     path(
-        'v1/auth/token/',
-        CreateToken.as_view(),
-        name='token_obtain_pair'
+        'email/',
+        EmailSignUpView.as_view()
     ),
     path(
-        'v1/auth/signup/',
+        'token/',
+        CodeConfirmView.as_view(),
+        name='token_obtain_pair',
+    ),
+    path(
+        'signup/',
         APISignup.as_view(),
         name='signup'
-    ),
+    )
 ]
+
+# v1_router.register(
+#     prefix=r'users',
+#     viewset=UserViewSet,
+#     basename='users',
+# )
+
+# token_auth_urls = [
+#     path(
+#         'v1/auth/token/',
+#         CreateToken.as_view(),
+#         name='token_obtain_pair'
+#     ),
+#     path(
+#         'v1/auth/signup/',
+#         APISignup.as_view(),
+#         name='signup'
+#     ),
+# ]
 
 urlpatterns = [
     path('v1/', include(v1_router.urls)),
     path('', include(v1_router.urls)),
-    path('', include(token_auth_urls)),
-
+    # path('', include(token_auth_urls)),
+    path(
+        'v1/auth/',
+        include(auth_patterns),
+    ),
 ]
