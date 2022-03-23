@@ -4,6 +4,9 @@ from rest_framework.exceptions import ValidationError
 
 from reviews.models import Category, Genre, Title, User, Comment, Review
 
+SIGNUP_ERROR_MESSAGE = 'Ошибка, имя me зарезервировано системой.'
+USERNAME_REGEX = r'^[\w.@+-]+$'
+
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -105,10 +108,22 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
 
 
-class SignUpSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ("email",)
+class SignupSerializer(serializers.Serializer):
+    """Сериалазер без модели, для полей username и email."""
+    username = serializers.RegexField(
+        regex=USERNAME_REGEX, max_length=150)
+    email = serializers.EmailField()
+
+    def validate_username(self, value):
+        if value == 'me':
+            raise serializers.ValidationError(SIGNUP_ERROR_MESSAGE)
+        return value
+
+
+# class SignUpSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = ("email",)
 
 
 class TokenSerializer(serializers.Serializer):

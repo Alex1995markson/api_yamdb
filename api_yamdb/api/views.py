@@ -23,18 +23,19 @@ from .permissions import IsAdminOrReadOnly, IsAdminOrAuthorOrReadOnly
 from .filters import TitlesFilter
 from .serializers import (CategorySerializer,
                           GenreSerializer,
-                          TitlePostSerializer, 
+                          TitlePostSerializer,
                           TitleGetSerializer,
                           CommentSerializer,
                           ReviewSerializer,
                           UserSerializer,
                           TokenSerializer,
-                          SignUpSerializer)
+                          SignupSerializer,
+                          )
 
 
 class CategoryViewSet(CreateListViewSet):
     queryset = Category.objects.all()
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAdminOrAuthorOrReadOnly]
     serializer_class = CategorySerializer
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
@@ -43,21 +44,22 @@ class CategoryViewSet(CreateListViewSet):
 
 class GenreViewSet(CreateListViewSet):
     queryset = Genre.objects.all()
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAdminOrAuthorOrReadOnly]
     serializer_class = GenreSerializer
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ["name"]
 
 
-# class TitleViewSet(ModelViewSet):
-#     queryset = Title.objects.all().annotate(
-#         rating=Avg("reviews__score")).order_by('category')
-#     # queryset = Title.objects.annotate(rating=Avg("reviews__score")).all()
-#     permission_classes = [IsAdminOrReadOnly]
-#     filterset_class = TitlesFilter
-#     filter_backends = (DjangoFilterBackend,)
-#     filterset_fields = ["category", "genre", "year", "name"]
+class TitleViewSet(ModelViewSet):
+    queryset = Title.objects.all()
+
+        # rating=Avg("reviews__score")).order_by('category')
+    # queryset = Title.objects.annotate(rating=Avg("reviews__score")).all()
+    permission_classes = [IsAdminOrAuthorOrReadOnly]
+    filterset_class = TitlesFilter
+    filter_backends = (DjangoFilterBackend,)
+    filterset_fields = ["category", "genre", "year", "name"]
 
     def get_serializer_class(self):
         if self.action in ("create", "partial_update"):
@@ -65,9 +67,32 @@ class GenreViewSet(CreateListViewSet):
         return TitleGetSerializer
 
 
-class ReviewViewSet(ModelViewSet):
+# class ReviewViewSet(ModelViewSet):
+#     serializer_class = ReviewSerializer
+#     permission_classes = (IsAdminOrAuthorOrReadOnly,)
+
+#     def perform_create(self, serializer):
+#         title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
+#         if Review.objects.filter(
+#                 title=title, author=self.request.user
+#         ).exists():
+#             raise ValidationError('Можно оставить только один отзыв')
+#         serializer.save(author=self.request.user, title=title)
+
+class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     permission_classes = (IsAdminOrAuthorOrReadOnly,)
+
+    @staticmethod
+    def rating_calculation(title):
+        int_rating = title.review.all().aggregate(Avg('score'))
+        title.rating = int_rating['score__avg']
+        title.save(update_fields=['rating'])
+
+    def get_queryset(self):
+        title = get_object_or_404(Title, id=self.kwargs.get('title_id'))
+        self.rating_calculation(title)
+        return title.review.all()
 
     def perform_create(self, serializer):
         title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
@@ -75,7 +100,13 @@ class ReviewViewSet(ModelViewSet):
                 title=title, author=self.request.user
         ).exists():
             raise ValidationError('Можно оставить только один отзыв')
+        self.rating_calculation(title)
         serializer.save(author=self.request.user, title=title)
+
+    def perform_update(self, serializer):
+        serializer.save()
+        title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
+        self.rating_calculation(title)
 
 
 class CommentViewSet(ModelViewSet):
@@ -90,6 +121,46 @@ class CommentViewSet(ModelViewSet):
         review_id = self.kwargs.get('review_id')
         review = get_object_or_404(Review, pk=review_id)
         serializer.save(author=self.request.user, review=review)
+
+
+class APISignup(APIView):
+    """View для регистрации и создания пользователя
+    с последующей отсылкой confirmation code на email этого пользователя."""
+
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        serializer = SignupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        username = serializer.validated_data['username']
+        email = serializer.validated_data['email']
+
+        username_exists = User.objects.filter(username=username).exists()
+        email_exists = User.objects.filter(email=email).exists()
+
+        if not username_exists and not email_exists:
+            user = User.objects.create(username=username, email=email)
+        else:
+            if not username_exists:
+                return Response(
+                    "Ошибка, email занят, просьба выбрать другой email.",
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user = get_object_or_404(User, username=username)
+            if user.email != email:
+                return Response(
+                    "Ошибка, у пользователя другой email.",
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        token = default_token_generator.make_token(user)
+        send_mail(
+            subject='Ваш код для получения api-токена.',
+            message=f'Код: {token}',
+            from_email=FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -170,3 +241,30 @@ class CodeConfirmView(APIView):
             user.save()
             refresh_token = RefreshToken.for_user(user)
             return Response({"token": str(refresh_token.access_token)})
+
+
+class CreateToken(APIView):
+    """Создание токена."""
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        serializer = TokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        confirmation_code = serializer.validated_data['confirmation_code']
+        username = serializer.validated_data['username']
+        user = get_object_or_404(User, username=username)
+        if default_token_generator.check_token(
+            user,
+            confirmation_code
+        ):
+            token = AccessToken.for_user(user)
+            return Response(
+                {"token": f"{token}"},
+                status=status.HTTP_200_OK
+            )
+        return Response(
+            "Confirm code invalid",
+            status=status.HTTP_400_BAD_REQUEST
+        )
+        
+        
