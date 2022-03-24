@@ -4,6 +4,7 @@ from django.core import exceptions
 from django.core.mail import send_mail
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination
@@ -14,12 +15,15 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.tokens import default_token_generator
+from rest_framework_simplejwt.tokens import AccessToken
 
 from reviews.models import Category, Genre, Title, Review, User
 from api_yamdb.settings import DEFAULT_FROM_EMAIL
 
 from .mixins import CreateListViewSet
 from .permissions import (IsAdminOrReadOnly,
+                          ReadOnlyOrIsAdminOrModeratorOrAuthor,
                           IsAdminOrAuthorOrReadOnly,
                           IsAdmin
                           )
@@ -39,7 +43,7 @@ from .serializers import (CategorySerializer,
 
 class CategoryViewSet(CreateListViewSet):
     queryset = Category.objects.all()
-    permission_classes = [IsAdminOrAuthorOrReadOnly]
+    permission_classes = (IsAdminOrAuthorOrReadOnly, IsAdmin)
     serializer_class = CategorySerializer
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
@@ -48,11 +52,12 @@ class CategoryViewSet(CreateListViewSet):
 
 class GenreViewSet(CreateListViewSet):
     queryset = Genre.objects.all()
-    permission_classes = [IsAdminOrAuthorOrReadOnly]
+    permission_classes = (IsAdminOrAuthorOrReadOnly, IsAdmin)
     serializer_class = GenreSerializer
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ["name"]
+    lookup_field = ('slug')
 
 
 class TitleViewSet(ModelViewSet):
@@ -60,7 +65,7 @@ class TitleViewSet(ModelViewSet):
 
         # rating=Avg("reviews__score")).order_by('category')
     # queryset = Title.objects.annotate(rating=Avg("reviews__score")).all()
-    permission_classes = [IsAdminOrAuthorOrReadOnly]
+    permission_classes = (IsAdminOrAuthorOrReadOnly, IsAdmin)
     filterset_class = TitlesFilter
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ["category", "genre", "year", "name"]
@@ -85,7 +90,7 @@ class TitleViewSet(ModelViewSet):
 
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
-    permission_classes = (IsAdminOrAuthorOrReadOnly,)
+    permission_classes = (ReadOnlyOrIsAdminOrModeratorOrAuthor,)
 
     @staticmethod
     def rating_calculation(title):
@@ -115,7 +120,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 class CommentViewSet(ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = (IsAdminOrAuthorOrReadOnly,)
+    permission_classes = (ReadOnlyOrIsAdminOrModeratorOrAuthor,)
 
     def get_queryset(self):
         review = get_object_or_404(Review, id=self.kwargs.get('review_id'))
@@ -160,7 +165,7 @@ class APISignup(APIView):
         send_mail(
             subject='Ваш код для получения api-токена.',
             message=f'Код: {token}',
-            from_email=FROM_EMAIL,
+            from_email=DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,
         )
@@ -257,6 +262,7 @@ class CreateToken(APIView):
         confirmation_code = serializer.validated_data['confirmation_code']
         username = serializer.validated_data['username']
         user = get_object_or_404(User, username=username)
+        print(user)
         if default_token_generator.check_token(
             user,
             confirmation_code
@@ -268,5 +274,5 @@ class CreateToken(APIView):
             )
         return Response(
             "Confirm code invalid",
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_404_NOT_FOUND
         )
