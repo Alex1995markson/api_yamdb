@@ -5,7 +5,6 @@ from api.views import (
     ReviewViewSet,
     CommentViewSet,
     CategoryViewSet,
-    CreateToken,
     APISignup,
     UserViewSet,
     GenreViewSet,
@@ -65,31 +64,8 @@ auth_patterns = [
     )
 ]
 
-# v1_router.register(
-#     prefix=r'users',
-#     viewset=UserViewSet,
-#     basename='users',
-# )
-
-# token_auth_urls = [
-#     path(
-#         'v1/auth/token/',
-#         CreateToken.as_view(),
-#         name='token_obtain_pair'
-#     ),
-#     path(
-#         'v1/auth/signup/',
-#         APISignup.as_view(),
-#         name='signup'
-#     ),
-# ]
-
 urlpatterns = [
     path('v1/', include(v1_router.urls)),
     path('', include(v1_router.urls)),
-    # path('', include(token_auth_urls)),
-    path(
-        'v1/auth/',
-        include(auth_patterns),
-    ),
+    path('v1/auth/', include(auth_patterns))
 ]

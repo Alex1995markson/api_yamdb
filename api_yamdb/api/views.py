@@ -4,7 +4,7 @@ from django.core import exceptions
 from django.core.mail import send_mail
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
-from django.http import Http404
+# from django.http import Http404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination
@@ -20,14 +20,10 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from reviews.models import Category, Genre, Title, Review, User
 from api_yamdb.settings import DEFAULT_FROM_EMAIL
-
 from .mixins import CreateListViewSet
 from .permissions import (IsAdminOrReadOnly,
-                          ReadOnlyOrIsAdminOrModeratorOrAuthor,
-                          IsAdminOrAuthorOrReadOnly,
-                          IsAdmin
-                          )
-
+                          AuthorOrAdminOrModeratorReadOnly,
+                          IsAdmin)
 from .filters import TitlesFilter
 from .serializers import (CategorySerializer,
                           GenreSerializer,
@@ -37,13 +33,12 @@ from .serializers import (CategorySerializer,
                           ReviewSerializer,
                           UserSerializer,
                           TokenSerializer,
-                          SignupSerializer,
-                          )
+                          SignupSerializer)
 
 
 class CategoryViewSet(CreateListViewSet):
     queryset = Category.objects.all()
-    permission_classes = (IsAdminOrAuthorOrReadOnly, IsAdmin)
+    permission_classes = (IsAdminOrReadOnly,)
     serializer_class = CategorySerializer
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
@@ -52,7 +47,7 @@ class CategoryViewSet(CreateListViewSet):
 
 class GenreViewSet(CreateListViewSet):
     queryset = Genre.objects.all()
-    permission_classes = (IsAdminOrAuthorOrReadOnly, IsAdmin)
+    permission_classes = (IsAdminOrReadOnly,)
     serializer_class = GenreSerializer
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
@@ -62,10 +57,9 @@ class GenreViewSet(CreateListViewSet):
 
 class TitleViewSet(ModelViewSet):
     queryset = Title.objects.all()
-
-        # rating=Avg("reviews__score")).order_by('category')
+    # rating=Avg("reviews__score")).order_by('category')
     # queryset = Title.objects.annotate(rating=Avg("reviews__score")).all()
-    permission_classes = (IsAdminOrAuthorOrReadOnly, IsAdmin)
+    permission_classes = (IsAdminOrReadOnly,)
     filterset_class = TitlesFilter
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ["category", "genre", "year", "name"]
@@ -90,7 +84,7 @@ class TitleViewSet(ModelViewSet):
 
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
-    permission_classes = (ReadOnlyOrIsAdminOrModeratorOrAuthor,)
+    permission_classes = (AuthorOrAdminOrModeratorReadOnly,)
 
     @staticmethod
     def rating_calculation(title):
@@ -120,7 +114,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 class CommentViewSet(ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = (ReadOnlyOrIsAdminOrModeratorOrAuthor,)
+    permission_classes = (AuthorOrAdminOrModeratorReadOnly,)
 
     def get_queryset(self):
         review = get_object_or_404(Review, id=self.kwargs.get('review_id'))
@@ -174,7 +168,7 @@ class APISignup(APIView):
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-    permission_classes = [IsAdminUser | IsAdmin]
+    permission_classes = (IsAdmin,)
     serializer_class = UserSerializer
     lookup_field = "username"
     filter_backends = [filters.SearchFilter]
@@ -205,7 +199,7 @@ class EmailSignUpView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = SignUpSerializer(data=request.data)
+        serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
             email = serializer.validated_data.get("email")
             confirmation_code = uuid.uuid4()
