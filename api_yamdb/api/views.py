@@ -4,14 +4,13 @@ from django.core import exceptions
 from django.core.mail import send_mail
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
-# from django.http import Http404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework import filters, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -43,6 +42,7 @@ class CategoryViewSet(CreateListViewSet):
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ["name"]
+    lookup_field = ('slug')
 
 
 class GenreViewSet(CreateListViewSet):
@@ -57,8 +57,6 @@ class GenreViewSet(CreateListViewSet):
 
 class TitleViewSet(ModelViewSet):
     queryset = Title.objects.all()
-    # rating=Avg("reviews__score")).order_by('category')
-    # queryset = Title.objects.annotate(rating=Avg("reviews__score")).all()
     permission_classes = (IsAdminOrReadOnly,)
     filterset_class = TitlesFilter
     filter_backends = (DjangoFilterBackend,)
@@ -69,18 +67,6 @@ class TitleViewSet(ModelViewSet):
             return TitlePostSerializer
         return TitleGetSerializer
 
-
-# class ReviewViewSet(ModelViewSet):
-#     serializer_class = ReviewSerializer
-#     permission_classes = (IsAdminOrAuthorOrReadOnly,)
-
-#     def perform_create(self, serializer):
-#         title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
-#         if Review.objects.filter(
-#                 title=title, author=self.request.user
-#         ).exists():
-#             raise ValidationError('Можно оставить только один отзыв')
-#         serializer.save(author=self.request.user, title=title)
 
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
@@ -129,7 +115,6 @@ class CommentViewSet(ModelViewSet):
 class APISignup(APIView):
     """View для регистрации и создания пользователя
     с последующей отсылкой confirmation code на email этого пользователя."""
-
     permission_classes = (AllowAny,)
 
     def post(self, request):
@@ -248,25 +233,18 @@ class CodeConfirmView(APIView):
 
 class CreateToken(APIView):
     """Создание токена."""
+    http_method_names = ['post', ]
     permission_classes = (AllowAny,)
 
     def post(self, request):
         serializer = TokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        confirmation_code = serializer.validated_data['confirmation_code']
-        username = serializer.validated_data['username']
+        username = serializer.validated_data.get('username')
         user = get_object_or_404(User, username=username)
-        print(user)
-        if default_token_generator.check_token(
-            user,
-            confirmation_code
-        ):
-            token = AccessToken.for_user(user)
-            return Response(
-                {"token": f"{token}"},
-                status=status.HTTP_200_OK
-            )
-        return Response(
-            "Confirm code invalid",
-            status=status.HTTP_404_NOT_FOUND
-        )
+        confirmation_code = serializer.validated_data.get('confirmation_code')
+        if default_token_generator.check_token(user, confirmation_code):
+            access_token = RefreshToken.for_user(user).access_token
+            data = {"token": str(access_token)}
+            return Response(data, status=status.HTTP_201_CREATED)
+        errors = {"error": "confirmation code is incorrect"}
+        return Response(errors, status=status.HTTP_400_BAD_REQUEST)

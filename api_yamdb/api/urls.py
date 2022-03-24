@@ -13,12 +13,7 @@ from api.views import (
     EmailSignUpView
 )
 
-
-app_name = 'api'
-
-
 v1_router = DefaultRouter()
-
 v1_router.register(
     prefix=r'categories',
     viewset=CategoryViewSet,
@@ -44,7 +39,6 @@ v1_router.register(
     CommentViewSet,
     basename='comments'
 )
-
 v1_router.register(r'users', UserViewSet)
 
 auth_patterns = [

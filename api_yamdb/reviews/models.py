@@ -1,5 +1,4 @@
 from django.db import models
-import uuid
 from django.contrib.auth.models import AbstractUser
 from .validators import validation_of_the_year, validate_score
 from django.db.models import UniqueConstraint
@@ -125,9 +124,7 @@ class Title(models.Model):
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
-        # on_delete=models.SET_NULL так как строка повторяеться
     )
-    # добавил в модель рейтинг
     rating = models.PositiveSmallIntegerField(
         verbose_name='Рейтинг',
         help_text='Рейтинг произведения',
@@ -144,7 +141,6 @@ class Title(models.Model):
         return self.name
 
 
-# создание модели ревью
 class Review(models.Model):
     title = models.ForeignKey(
         Title,
@@ -159,7 +155,7 @@ class Review(models.Model):
         validators=(validate_score,),
     )
     author = models.ForeignKey(
-        User, #юзер не создан, автор ссылается на юзера
+        User,
         on_delete=models.CASCADE,
         related_name='review'
     )
@@ -171,10 +167,8 @@ class Review(models.Model):
         'Дата добавления', auto_now_add=True, db_index=True
     )
 
-# создание сортировки по рейтингу
     class Meta:
         ordering = ('score',)
-        # создание уникальных полей что б один юзер не оставлял 2 отзыва
         constraints = (
             models.UniqueConstraint(
                 fields=('title', 'author'),
@@ -186,7 +180,6 @@ class Review(models.Model):
         return self.text[:15]
 
 
-# создание модели коммент
 class Comment(models.Model):
     review = models.ForeignKey(
         Review,

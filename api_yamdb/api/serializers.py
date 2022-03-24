@@ -97,7 +97,6 @@ class CommentSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         fields = (
-            "id",
             "username",
             "first_name",
             "last_name",
