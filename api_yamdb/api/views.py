@@ -20,19 +20,23 @@ from rest_framework_simplejwt.tokens import AccessToken
 from reviews.models import Category, Genre, Title, Review, User
 from api_yamdb.settings import DEFAULT_FROM_EMAIL
 from .mixins import CreateListViewSet
-from .permissions import (IsAdminOrReadOnly,
-                          AuthorOrAdminOrModeratorReadOnly,
-                          IsAdmin)
+from .permissions import (
+    IsAdminOrReadOnly,
+    AuthorOrAdminOrModeratorReadOnly,
+    IsAdmin,
+)
 from .filters import TitlesFilter
-from .serializers import (CategorySerializer,
-                          GenreSerializer,
-                          TitlePostSerializer,
-                          TitleGetSerializer,
-                          CommentSerializer,
-                          ReviewSerializer,
-                          UserSerializer,
-                          TokenSerializer,
-                          SignupSerializer)
+from .serializers import (
+    CategorySerializer,
+    GenreSerializer,
+    TitlePostSerializer,
+    TitleGetSerializer,
+    CommentSerializer,
+    ReviewSerializer,
+    UserSerializer,
+    TokenSerializer,
+    SignupSerializer,
+)
 
 
 class CategoryViewSet(CreateListViewSet):
@@ -42,7 +46,7 @@ class CategoryViewSet(CreateListViewSet):
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ["name"]
-    lookup_field = ('slug')
+    lookup_field = "slug"
 
 
 class GenreViewSet(CreateListViewSet):
@@ -52,7 +56,7 @@ class GenreViewSet(CreateListViewSet):
     pagination_class = LimitOffsetPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ["name"]
-    lookup_field = ('slug')
+    lookup_field = "slug"
 
 
 class TitleViewSet(ModelViewSet):
@@ -74,27 +78,27 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     @staticmethod
     def rating_calculation(title):
-        int_rating = title.review.all().aggregate(Avg('score'))
-        title.rating = int_rating['score__avg']
-        title.save(update_fields=['rating'])
+        int_rating = title.review.all().aggregate(Avg("score"))
+        title.rating = int_rating["score__avg"]
+        title.save(update_fields=["rating"])
 
     def get_queryset(self):
-        title = get_object_or_404(Title, id=self.kwargs.get('title_id'))
+        title = get_object_or_404(Title, id=self.kwargs.get("title_id"))
         self.rating_calculation(title)
         return title.review.all()
 
     def perform_create(self, serializer):
-        title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
+        title = get_object_or_404(Title, pk=self.kwargs.get("title_id"))
         if Review.objects.filter(
-                title=title, author=self.request.user
+            title=title, author=self.request.user
         ).exists():
-            raise ValidationError('Можно оставить только один отзыв')
+            raise ValidationError("Можно оставить только один отзыв")
         self.rating_calculation(title)
         serializer.save(author=self.request.user, title=title)
 
     def perform_update(self, serializer):
         serializer.save()
-        title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
+        title = get_object_or_404(Title, pk=self.kwargs.get("title_id"))
         self.rating_calculation(title)
 
 
@@ -103,11 +107,11 @@ class CommentViewSet(ModelViewSet):
     permission_classes = (AuthorOrAdminOrModeratorReadOnly,)
 
     def get_queryset(self):
-        review = get_object_or_404(Review, id=self.kwargs.get('review_id'))
+        review = get_object_or_404(Review, id=self.kwargs.get("review_id"))
         return review.comments.all()
 
     def perform_create(self, serializer):
-        review_id = self.kwargs.get('review_id')
+        review_id = self.kwargs.get("review_id")
         review = get_object_or_404(Review, pk=review_id)
         serializer.save(author=self.request.user, review=review)
 
@@ -115,13 +119,14 @@ class CommentViewSet(ModelViewSet):
 class APISignup(APIView):
     """View для регистрации и создания пользователя
     с последующей отсылкой confirmation code на email этого пользователя."""
+
     permission_classes = (AllowAny,)
 
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        username = serializer.validated_data['username']
-        email = serializer.validated_data['email']
+        username = serializer.validated_data["username"]
+        email = serializer.validated_data["email"]
 
         username_exists = User.objects.filter(username=username).exists()
         email_exists = User.objects.filter(email=email).exists()
@@ -132,18 +137,18 @@ class APISignup(APIView):
             if not username_exists:
                 return Response(
                     "Ошибка, email занят, просьба выбрать другой email.",
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             user = get_object_or_404(User, username=username)
             if user.email != email:
                 return Response(
                     "Ошибка, у пользователя другой email.",
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
         token = default_token_generator.make_token(user)
         send_mail(
-            subject='Ваш код для получения api-токена.',
-            message=f'Код: {token}',
+            subject="Ваш код для получения api-токена.",
+            message=f"Код: {token}",
             from_email=DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,
@@ -211,37 +216,30 @@ class EmailSignUpView(APIView):
 class CodeConfirmView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, *args, **kwargs):
-        serializer = TokenSerializer(data=self.request.data)
+    def post(self, request):
+        serializer = TokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        try:
-            user = User.objects.get(
-                email=serializer.data["email"],
-                confirmation_code=serializer.data["confirmation_code"],
-            )
-        except exceptions.ValidationError:
-            return Response(
-                data={"detail": "Invalid email or code"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        else:
-            user.is_active = True
-            user.save()
-            refresh_token = RefreshToken.for_user(user)
-            return Response({"token": str(refresh_token.access_token)})
+        user = get_object_or_404(
+            User, username=serializer.validated_data.get("username")
+        )
+        token = AccessToken.for_user(user)
+        return Response(data={"token": str(token)}, status=status.HTTP_200_OK)
 
 
 class CreateToken(APIView):
     """Создание токена."""
-    http_method_names = ['post', ]
+
+    http_method_names = [
+        "post",
+    ]
     permission_classes = (AllowAny,)
 
     def post(self, request):
         serializer = TokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        username = serializer.validated_data.get('username')
+        username = serializer.validated_data.get("username")
         user = get_object_or_404(User, username=username)
-        confirmation_code = serializer.validated_data.get('confirmation_code')
+        confirmation_code = serializer.validated_data.get("confirmation_code")
         if default_token_generator.check_token(user, confirmation_code):
             access_token = RefreshToken.for_user(user).access_token
             data = {"token": str(access_token)}
