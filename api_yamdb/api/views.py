@@ -1,6 +1,5 @@
 import uuid
 
-from django.core import exceptions
 from django.core.mail import send_mail
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
