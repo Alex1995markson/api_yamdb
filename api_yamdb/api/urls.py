@@ -44,12 +44,13 @@ v1_router.register(r'users', UserViewSet)
 auth_patterns = [
     path(
         'email/',
-        EmailSignUpView.as_view()
+        EmailSignUpView.as_view(),
+        name='email_signup'
     ),
     path(
         'token/',
         CodeConfirmView.as_view(),
-        name='token_obtain_pair',
+        name='token_obtain_pair'
     ),
     path(
         'signup/',
