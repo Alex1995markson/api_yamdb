@@ -76,14 +76,14 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     @staticmethod
     def rating_calculation(title):
-        int_rating = title.review.all().aggregate(Avg("score"))
+        int_rating = title.reviews.all().aggregate(Avg("score"))
         title.rating = int_rating["score__avg"]
         title.save(update_fields=["rating"])
 
     def get_queryset(self):
         title = get_object_or_404(Title, id=self.kwargs.get("title_id"))
         self.rating_calculation(title)
-        return title.review.all()
+        return title.reviews.all()
 
     def perform_create(self, serializer):
         title = get_object_or_404(Title, pk=self.kwargs.get("title_id"))
