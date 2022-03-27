@@ -168,7 +168,7 @@ class Review(models.Model):
     )
 
     class Meta:
-        ordering = ('score',)
+        ordering = ('score', 'pub_date')
         constraints = (
             models.UniqueConstraint(
                 fields=('title', 'author'),
