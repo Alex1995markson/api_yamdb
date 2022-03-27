@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from .validators import validation_of_the_year, validate_score
+from .validators import validation_of_the_year
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models import UniqueConstraint
 
@@ -125,13 +125,6 @@ class Title(models.Model):
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
-    )
-    rating = models.PositiveSmallIntegerField(
-        verbose_name='Рейтинг',
-        help_text='Рейтинг произведения',
-        null=True,
-        validators=(validate_score,),
-        blank=True,
     )
 
     class Meta:

@@ -4,7 +4,6 @@ from django.core.mail import send_mail
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework import filters, viewsets, status
 from rest_framework.decorators import action
@@ -58,7 +57,8 @@ class GenreViewSet(CreateListViewSet):
 
 
 class TitleViewSet(ModelViewSet):
-    queryset = Title.objects.all()
+    queryset = (Title.objects.annotate(rating=Avg('reviews__score'))
+                .order_by('category'))
     permission_classes = (IsAdminOrReadOnly,)
     filterset_class = TitlesFilter
     filter_backends = (DjangoFilterBackend,)
@@ -74,30 +74,15 @@ class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     permission_classes = (AuthorOrAdminOrModeratorReadOnly,)
 
-    @staticmethod
-    def rating_calculation(title):
-        int_rating = title.reviews.all().aggregate(Avg("score"))
-        title.rating = int_rating["score__avg"]
-        title.save(update_fields=["rating"])
-
     def get_queryset(self):
-        title = get_object_or_404(Title, id=self.kwargs.get("title_id"))
-        self.rating_calculation(title)
+        title_id = self.kwargs.get('title_id')
+        title = get_object_or_404(Title, id=title_id)
         return title.reviews.all()
 
     def perform_create(self, serializer):
-        title = get_object_or_404(Title, pk=self.kwargs.get("title_id"))
-        if Review.objects.filter(
-            title=title, author=self.request.user
-        ).exists():
-            raise ValidationError("Можно оставить только один отзыв")
-        self.rating_calculation(title)
+        title_id = self.kwargs.get('title_id')
+        title = get_object_or_404(Title, id=title_id)
         serializer.save(author=self.request.user, title=title)
-
-    def perform_update(self, serializer):
-        serializer.save()
-        title = get_object_or_404(Title, pk=self.kwargs.get("title_id"))
-        self.rating_calculation(title)
 
 
 class CommentViewSet(ModelViewSet):
