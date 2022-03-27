@@ -36,7 +36,7 @@ class TitlePostSerializer(serializers.ModelSerializer):
 class TitleGetSerializer(serializers.ModelSerializer):
     category = CategorySerializer()
     genre = GenreSerializer(many=True)
-    # rating = serializers.IntegerField(read_only=True)
+    #rating = serializers.IntegerField(read_only=True)
 
     class Meta:
         fields = "__all__"
@@ -112,12 +112,6 @@ class SignupSerializer(serializers.Serializer):
         if value == "me":
             raise serializers.ValidationError(SIGNUP_ERROR_MESSAGE)
         return value
-
-
-# class SignUpSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = User
-#         fields = ("email",)
 
 
 class TokenSerializer(serializers.Serializer):

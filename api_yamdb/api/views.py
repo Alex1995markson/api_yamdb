@@ -12,7 +12,6 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.tokens import default_token_generator
 from rest_framework_simplejwt.tokens import AccessToken
 
@@ -223,25 +222,3 @@ class CodeConfirmView(APIView):
         )
         token = AccessToken.for_user(user)
         return Response(data={"token": str(token)}, status=status.HTTP_200_OK)
-
-
-class CreateToken(APIView):
-    """Создание токена."""
-
-    http_method_names = [
-        "post",
-    ]
-    permission_classes = (AllowAny,)
-
-    def post(self, request):
-        serializer = TokenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        username = serializer.validated_data.get("username")
-        user = get_object_or_404(User, username=username)
-        confirmation_code = serializer.validated_data.get("confirmation_code")
-        if default_token_generator.check_token(user, confirmation_code):
-            access_token = RefreshToken.for_user(user).access_token
-            data = {"token": str(access_token)}
-            return Response(data, status=status.HTTP_201_CREATED)
-        errors = {"error": "confirmation code is incorrect"}
-        return Response(errors, status=status.HTTP_400_BAD_REQUEST)
