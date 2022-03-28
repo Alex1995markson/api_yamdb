@@ -9,8 +9,7 @@ from api.views import (
     UserViewSet,
     GenreViewSet,
     TitleViewSet,
-    CodeConfirmView,
-    EmailSignUpView
+    CodeConfirmView
 )
 
 v1_router = DefaultRouter()
@@ -42,11 +41,6 @@ v1_router.register(
 v1_router.register(r'users', UserViewSet)
 
 auth_patterns = [
-    path(
-        'email/',
-        EmailSignUpView.as_view(),
-        name='email_signup'
-    ),
     path(
         'token/',
         CodeConfirmView.as_view(),

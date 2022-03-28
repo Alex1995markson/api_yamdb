@@ -168,34 +168,6 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class EmailSignUpView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = SignupSerializer(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data.get("email")
-            confirmation_code = uuid.uuid4()
-            User.objects.create(
-                email=email,
-                username=str(email),
-                confirmation_code=confirmation_code,
-                is_active=False,
-            )
-            send_mail(
-                "Account verification",
-                "Your activation key {}".format(confirmation_code),
-                DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=True,
-            )
-            return Response(
-                {"result": "A confirmation code has been sent to your email"},
-                status=200,
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class CodeConfirmView(APIView):
     permission_classes = [AllowAny]
 
