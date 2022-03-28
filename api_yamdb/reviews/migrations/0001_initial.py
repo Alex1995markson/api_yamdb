@@ -79,7 +79,7 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(max_length=64, verbose_name='Произведение')),
                 ('description', models.TextField(blank=True, null=True, verbose_name='Описание')),
                 ('year', models.IntegerField(validators=[reviews.validators.validation_of_the_year], verbose_name='Дата выхода произведения')),
-                ('rating', models.PositiveSmallIntegerField(blank=True, help_text='Рейтинг произведения', null=True, validators=[reviews.validators.validate_score], verbose_name='Рейтинг')),
+                ('rating', models.PositiveSmallIntegerField(blank=True, help_text='Рейтинг произведения', null=True, verbose_name='Рейтинг')),
                 ('category', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='titles_as_category', to='reviews.Category', verbose_name='Категория')),
                 ('genre', models.ManyToManyField(blank=True, null=True, related_name='titles_as_genre', to='reviews.Genre', verbose_name='Жанр')),
             ],
@@ -92,7 +92,7 @@ class Migration(migrations.Migration):
             name='Review',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('score', models.PositiveSmallIntegerField(help_text='Новая оценка', validators=[reviews.validators.validate_score], verbose_name='Оценка произведения')),
+                ('score', models.PositiveSmallIntegerField(help_text='Новая оценка', verbose_name='Оценка произведения')),
                 ('text', models.TextField(help_text='Текст нового отзывы', verbose_name='Текст отзыва')),
                 ('pub_date', models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='Дата добавления')),
                 ('author', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='review', to=settings.AUTH_USER_MODEL)),
